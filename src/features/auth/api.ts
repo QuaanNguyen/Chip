@@ -1,5 +1,71 @@
 import { supabase } from "@/src/services/supabase";
 import { AuthError } from "./types";
+import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri } from "expo-linking";
+
+// Complete any pending auth sessions
+WebBrowser.maybeCompleteAuthSession();
+
+/**
+ * Sign in with Google OAuth
+ * Opens a browser for Google sign-in and handles the callback
+ */
+export async function signInWithGoogle() {
+  try {
+    const redirectTo = makeRedirectUri({
+      scheme: "chip",
+      path: "google-auth",
+    });
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: { prompt: "consent" },
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) throw new AuthError("unknown");
+
+    const googleOAuthUrl = data.url;
+    if (!googleOAuthUrl) {
+      throw new AuthError("unknown");
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(
+      googleOAuthUrl,
+      redirectTo,
+      { showInRecents: true }
+    );
+
+    if (result.type === "success") {
+      const url = new URL(result.url);
+      const params = new URLSearchParams(url.hash.substring(1));
+
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+        if (sessionError) throw new AuthError("unknown");
+        return sessionData;
+      }
+    }
+
+    throw new AuthError("unknown");
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    if (error instanceof Error && error.message.includes("network"))
+      throw new AuthError("network");
+    throw new AuthError("unknown");
+  }
+}
 
 /**
  * Check if an email address is already registered

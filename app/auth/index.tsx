@@ -1,6 +1,6 @@
-import { checkEmailExists, login, signup } from "@/src/features/auth/api";
+import { checkEmailExists, login, signup, signInWithGoogle } from "@/src/features/auth/api";
 import { AuthError } from "@/src/features/auth/types";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
@@ -12,6 +12,7 @@ export default function AuthEntry() {
   const [emailExists, setEmailExists] = React.useState(false);
   const [status, setStatus] = React.useState("");
   const router = useRouter();
+  const { inviteCode } = useLocalSearchParams<{ inviteCode?: string }>();
 
   const onContinue = async () => {
     if (!email) {
@@ -49,7 +50,17 @@ export default function AuthEntry() {
       const result = await login(email, password);
       setStatus("Login successful!");
       console.log("Login result:", result);
-      // Navigate to main app
+      
+      // Redirect to pairing with invite code if present
+      // Use replace immediately to beat the layout redirect
+      if (inviteCode) {
+        router.replace({
+          pathname: "/pairing",
+          params: { inviteCode },
+        });
+      } else {
+        router.replace("/pairing");
+      }
     } catch (error) {
       if (error instanceof AuthError) {
         Alert.alert("Login Error", error.code);
@@ -83,7 +94,14 @@ export default function AuthEntry() {
 
         // Brief delay before navigation to show success message
         setTimeout(() => {
-          router.push("/onboarding/onboard");
+          if (inviteCode) {
+            router.push({
+              pathname: "/pairing",
+              params: { inviteCode },
+            });
+          } else {
+            router.push("/pairing");
+          }
         }, 1000);
       } else {
         console.error("No user in signup response");
@@ -101,6 +119,22 @@ export default function AuthEntry() {
         Alert.alert("Error", "An unexpected error occurred during signup");
       }
 
+      setStatus("");
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setStatus("Signing in with Google...");
+      await signInWithGoogle();
+      setStatus("Google sign-in successful!");
+      // Navigation is handled by the root layout auth state listener
+    } catch (error) {
+      if (error instanceof AuthError) {
+        Alert.alert("Google Sign-In Error", error.code);
+      } else {
+        Alert.alert("Error", "An unknown error occurred");
+      }
       setStatus("");
     }
   };
@@ -129,6 +163,7 @@ export default function AuthEntry() {
       >
         {/* OAuth buttons */}
         <Pressable
+          onPress={handleGoogleSignIn}
           style={({ pressed }) => ({
             backgroundColor: "#fff",
             padding: 12,
@@ -299,3 +334,4 @@ export default function AuthEntry() {
     </View>
   );
 }
+

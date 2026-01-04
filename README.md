@@ -61,7 +61,7 @@ All AI behavior is rule-based for transparency and privacy, with quiet hours and
 
 ### Installation
 ```bash
-git clone https://github.com/<yourusername>/chip.git
+git clone https://github.com/<QuaanNguyen>/chip.git
 cd chip
 npm install
 ```
