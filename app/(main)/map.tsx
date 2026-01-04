@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker } from "react-native-maps";
 
-const GOOGLE_MAPS_API_KEY = "REDACTED_API_KEY";
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 export default function MapScreen() {
   const { partnerInfo, fetchPartnerInfo, isLoading } = usePartnership();
