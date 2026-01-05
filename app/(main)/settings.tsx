@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -40,7 +41,7 @@ export default function SettingsScreen() {
         .select("display_name, email")
         .eq("user_id", user.user.id)
         .single();
-      
+
       if (profileData) {
         setProfile(profileData);
       }
@@ -74,59 +75,84 @@ export default function SettingsScreen() {
   };
 
   const handleSignOut = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          await supabase.auth.signOut();
-          router.replace("/");
+    if (Platform.OS === 'web') {
+      if (window.confirm("Are you sure you want to sign out?")) {
+        await supabase.auth.signOut();
+        router.replace("/");
+      }
+    } else {
+      Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            await supabase.auth.signOut();
+            router.replace("/");
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const handleDissolvePartnership = () => {
-    Alert.alert(
-      "End Partnership",
-      "This will permanently end your partnership. All shared data will be deleted. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "End Partnership",
-          style: "destructive",
-          onPress: async () => {
-            await dissolve();
-            router.replace("/pairing");
+    if (Platform.OS === 'web') {
+      if (window.confirm("This will permanently end your partnership. All shared data will be deleted. This cannot be undone.")) {
+        dissolve().then(() => router.replace("/pairing"));
+      }
+    } else {
+      Alert.alert(
+        "End Partnership",
+        "This will permanently end your partnership. All shared data will be deleted. This cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "End Partnership",
+            style: "destructive",
+            onPress: async () => {
+              await dissolve();
+              router.replace("/pairing");
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleDeleteData = () => {
-    Alert.alert(
-      "Delete All Data",
-      "This will permanently delete all your location history. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const { data: user } = await supabase.auth.getUser();
-            if (user.user) {
-              await supabase
-                .from("user_locations")
-                .delete()
-                .eq("user_id", user.user.id);
-            }
-            Alert.alert("Done", "Your location history has been deleted.");
+    const deleteAction = async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (user.user) {
+        await supabase
+          .from("user_locations")
+          .delete()
+          .eq("user_id", user.user.id);
+      }
+      if (Platform.OS === 'web') {
+        window.alert("Your location history has been deleted.");
+      } else {
+        Alert.alert("Done", "Your location history has been deleted.");
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm("This will permanently delete all your location history. This cannot be undone.")) {
+        deleteAction();
+      }
+    } else {
+      Alert.alert(
+        "Delete All Data",
+        "This will permanently delete all your location history. This cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: deleteAction,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   if (isLoading) {
@@ -258,7 +284,10 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <Pressable style={styles.settingButton}>
+          <Pressable
+            style={styles.settingButton}
+            onPress={() => Platform.OS === 'web' ? window.alert('Location Mode settings not implemented') : Alert.alert('Coming Soon', 'Location Mode settings')}
+          >
             <Ionicons name="navigate-outline" size={22} color="#5D4E37" />
             <View style={styles.settingButtonContent}>
               <Text style={styles.settingLabel}>Location Mode</Text>
@@ -269,7 +298,10 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color="#B8A88A" />
           </Pressable>
 
-          <Pressable style={styles.settingButton}>
+          <Pressable
+            style={styles.settingButton}
+            onPress={() => Platform.OS === 'web' ? window.alert('Quiet Hours settings not implemented') : Alert.alert('Coming Soon', 'Quiet Hours settings')}
+          >
             <Ionicons name="moon-outline" size={22} color="#5D4E37" />
             <View style={styles.settingButtonContent}>
               <Text style={styles.settingLabel}>Quiet Hours</Text>
@@ -398,6 +430,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     gap: 12,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+      },
+    }),
   },
   settingButtonContent: {
     flex: 1,
@@ -451,6 +488,11 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     backgroundColor: "#FFF5F5",
     borderRadius: 14,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+      },
+    }),
   },
   dangerButtonText: {
     fontSize: 15,
@@ -463,6 +505,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     padding: 16,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+      },
+    }),
   },
   signOutText: {
     fontSize: 16,

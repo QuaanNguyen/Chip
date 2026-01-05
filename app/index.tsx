@@ -8,6 +8,7 @@ import {
   View,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { supabase } from "@/src/services/supabase";
 
@@ -165,11 +166,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0D071",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#5D4E37",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 12px 24px rgba(93, 78, 55, 0.15)",
+      },
+      default: {
+        shadowColor: "#5D4E37",
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+        elevation: 8,
+      },
+    }),
   },
   illustrationEmoji: {
     fontSize: 72,
@@ -178,11 +186,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 28,
     padding: 28,
-    shadowColor: "#5D4E37",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 4,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 8px 24px rgba(93, 78, 55, 0.08)",
+      },
+      default: {
+        shadowColor: "#5D4E37",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 4,
+      },
+    }),
   },
   title: {
     fontSize: 24,

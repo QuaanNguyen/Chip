@@ -44,24 +44,31 @@ export default function RootLayout() {
 
   const checkPartnership = async (userId: string) => {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("partnership_id")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
-      if (profile?.partnership_id) {
-        const { data: partnership } = await supabase
-          .from("partnerships")
-          .select("status")
-          .eq("id", profile.partnership_id)
-          .single();
-
-        setHasPartnership(partnership?.status === "active");
-      } else {
+      if (profileError || !profile?.partnership_id) {
         setHasPartnership(false);
+        return;
       }
-    } catch {
+
+      const { data: partnership, error: partnershipError } = await supabase
+        .from("partnerships")
+        .select("status")
+        .eq("id", profile.partnership_id)
+        .maybeSingle();
+
+      if (partnershipError || !partnership) {
+        setHasPartnership(false);
+        return;
+      }
+
+      setHasPartnership(partnership.status === "active");
+    } catch (error) {
+      console.error("Error checking partnership:", error);
       setHasPartnership(false);
     }
   };
@@ -72,18 +79,42 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === "auth";
     const inMainGroup = segments[0] === "(main)";
     const inPairingGroup = segments[0] === "pairing";
+    const inOnboardingGroup = segments[0] === "onboarding";
+
+    // Don't redirect if we're on onboarding pages
+    if (inOnboardingGroup) return;
 
     if (!isAuthenticated && !inAuthGroup && segments[0] !== undefined) {
       // Not authenticated, redirect to landing
-      router.replace("/");
+      try {
+        router.replace("/");
+      } catch (error) {
+        console.error("Navigation error:", error);
+      }
     } else if (isAuthenticated && !hasPartnership && (inMainGroup || inAuthGroup)) {
       // Authenticated but no partnership, go to pairing
-      router.replace("/pairing");
+      // Add small delay to prevent navigation conflicts
+      const timer = setTimeout(() => {
+        try {
+          router.replace("/pairing");
+        } catch (error) {
+          console.error("Navigation error:", error);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     } else if (isAuthenticated && hasPartnership && (inPairingGroup || inAuthGroup)) {
       // Authenticated with partnership, go to main
-      router.replace("/(main)/map");
+      // Add small delay to prevent navigation conflicts
+      const timer = setTimeout(() => {
+        try {
+          router.replace("/(main)/map");
+        } catch (error) {
+          console.error("Navigation error:", error);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isLoading, isAuthenticated, hasPartnership, segments]);
+  }, [isLoading, isAuthenticated, hasPartnership, segments, router]);
 
   if (isLoading) {
     return (
@@ -94,12 +125,7 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="auth" />
-      <Stack.Screen name="pairing" />
-      <Stack.Screen name="(main)" />
-    </Stack>
+    <Stack screenOptions={{ headerShown: false }} />
   );
 }
 

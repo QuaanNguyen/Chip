@@ -10,12 +10,13 @@ import {
   Text,
   TextInput,
   View,
+  Platform,
 } from "react-native";
 
 export default function PairingScreen() {
   const router = useRouter();
   const { inviteCode: paramInviteCode } = useLocalSearchParams<{ inviteCode?: string }>();
-  const { isLoading, status, inviteCode, create, join, refreshStatus } = usePartnership();
+  const { isLoading, status, inviteCode, create, join, refreshStatus, dissolve } = usePartnership();
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
   const [inputCode, setInputCode] = useState("");
   const [isAutoJoining, setIsAutoJoining] = useState(false);
@@ -28,7 +29,7 @@ export default function PairingScreen() {
       setInputCode(paramInviteCode);
       setMode("join");
       setIsAutoJoining(true);
-      
+
       // Auto-join after a brief delay to show the UI
       const autoJoin = async () => {
         try {
@@ -48,6 +49,24 @@ export default function PairingScreen() {
   useEffect(() => {
     refreshStatus();
   }, []);
+
+  // Poll for status updates when pending
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (status === "pending") {
+      interval = setInterval(refreshStatus, 2000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [status, refreshStatus]);
+
+  // Redirect to map if partnership is active
+  useEffect(() => {
+    if (status === "active") {
+      router.replace("/(main)/map");
+    }
+  }, [status, router]);
 
   const handleCreatePartnership = async () => {
     try {
@@ -82,6 +101,44 @@ export default function PairingScreen() {
     }
   };
 
+  const handleCancelInvite = async () => {
+    if (Platform.OS === "web") {
+      if (
+        window.confirm(
+          "Are you sure you want to cancel this invite code? You will need to generate a new one or join your partner's code."
+        )
+      ) {
+        try {
+          await dissolve();
+        } catch (error) {
+          window.alert("Failed to cancel invite");
+        }
+      }
+    } else {
+      Alert.alert(
+        "Cancel Invite",
+        "Are you sure you want to cancel this invite code? You will need to generate a new one or join your partner's code.",
+        [
+          {
+            text: "No",
+            style: "cancel",
+          },
+          {
+            text: "Yes, Cancel",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await dissolve();
+              } catch (error) {
+                Alert.alert("Error", "Failed to cancel invite");
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
+
   // Already has a pending partnership with invite code
   if (status === "pending" && inviteCode) {
     return (
@@ -96,6 +153,10 @@ export default function PairingScreen() {
 
           <Pressable style={styles.primaryButton} onPress={handleShareCode}>
             <Text style={styles.buttonText}>Share Invite Code</Text>
+          </Pressable>
+
+          <Pressable style={styles.textButton} onPress={handleCancelInvite}>
+            <Text style={styles.textButtonLabel}>Cancel Invite</Text>
           </Pressable>
 
           <Text style={styles.hint}>
@@ -115,7 +176,7 @@ export default function PairingScreen() {
             {isAutoJoining ? "Joining Partnership..." : "Enter Invite Code"}
           </Text>
           <Text style={styles.subtitle}>
-            {isAutoJoining 
+            {isAutoJoining
               ? "Please wait while we connect you with your partner"
               : "Ask your partner for their 6-character code"
             }
@@ -224,11 +285,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 24,
     padding: 28,
-    shadowColor: "#5D4E37",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 4,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 8px 24px rgba(93, 78, 55, 0.08)",
+      },
+      default: {
+        shadowColor: "#5D4E37",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 4,
+      },
+    }),
   },
   title: {
     fontSize: 22,

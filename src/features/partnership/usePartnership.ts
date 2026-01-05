@@ -58,14 +58,14 @@ export function usePartnership() {
     }
   };
 
-  const fetchPartnerInfo = async () => {
-    setIsLoading(true);
+  const fetchPartnerInfo = async (background = false) => {
+    if (!background) setIsLoading(true);
     try {
       const info = await getPartnerInfo();
       setPartnerInfo(info);
       return info;
     } finally {
-      setIsLoading(false);
+      if (!background) setIsLoading(false);
     }
   };
 

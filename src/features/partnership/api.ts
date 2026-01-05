@@ -48,9 +48,21 @@ export async function createPartnership(): Promise<PartnershipResult> {
 export async function joinPartnership(
   inviteCode: string
 ): Promise<PartnershipResult> {
-  const { data, error } = await supabase.rpc("join_partnership", {
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          new Error("Request timed out - check your network connection")
+        ),
+      15000
+    )
+  );
+
+  const rpcPromise = supabase.rpc("join_partnership", {
     p_invite_code: inviteCode.toUpperCase(),
   });
+
+  const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
 
   if (error) {
     if (error.message.includes("Invalid or expired")) {
